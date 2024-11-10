@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import {
-    Aptos,
-    AptosConfig,
-    Network,
-    InputTransactionData,
-} from "@aptos-labs/ts-sdk";
+import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
+
+import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
+
+import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 import {
     Layout,
     Card,
@@ -21,10 +20,11 @@ import {
     notification,
     Badge,
 } from "antd";
-
-import Navbar from "./components/Navbar";
-import { LoadingOutlined } from "@ant-design/icons";
 import { Wallet } from "lucide-react";
+
+const { Header } = Layout;
+// import Navbar from "./components/Navbar";
+import { LoadingOutlined } from "@ant-design/icons";
 
 interface CreateLotteryForm {
     lottery_name: string;
@@ -58,27 +58,13 @@ interface LotteryInfo {
 }
 
 export default function LotteryDashboard() {
-    const {
-        account,
-        signAndSubmitTransaction,
-        connect,
-        disconnect,
-        connected,
-        wallet,
-    } = useWallet();
+    const { account, signAndSubmitTransaction, disconnect, connected } =
+        useWallet();
     const [form] = Form.useForm();
     const [activeLotteries, setActiveLotteries] = useState<LotteryInfo[]>([]);
     const [pastLotteries, setPastLotteries] = useState<LotteryInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const connectWallet = async () => {
-        try {
-            await connect("Petra");
-        } catch (error) {
-            setError("Failed to connect wallet");
-        }
-    };
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -154,7 +140,7 @@ export default function LotteryDashboard() {
                     ],
                 },
                 sender: account.address,
-            };
+            } as any;
 
             console.log("Transaction payload:", payload);
 
@@ -206,11 +192,11 @@ export default function LotteryDashboard() {
             const payload = {
                 data: {
                     function: `${MODULE_ADDRESS}::DRaffle2::buy_ticket`,
-                    typeArguments: [], // Changed from type_arguments
-                    functionArguments: [lotteryId], // Changed from arguments
+                    typeArguments: [],
+                    functionArguments: [lotteryId],
                 },
                 sender: account.address,
-            };
+            } as any;
 
             const response = await signAndSubmitTransaction(payload);
             await aptos.waitForTransaction({ transactionHash: response.hash });
@@ -233,6 +219,60 @@ export default function LotteryDashboard() {
         }
     };
 
+    const drawWinner = async (lotteryId: string) => {
+        if (!account) {
+            notification.error({
+                message: "Error",
+                description: "Please connect your wallet first",
+            });
+            return;
+        }
+
+        // Check if the caller is admin
+        if (account.address !== MODULE_ADDRESS) {
+            notification.error({
+                message: "Error",
+                description: "Only admin can draw winners",
+            });
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const payload = {
+                data: {
+                    function: `${MODULE_ADDRESS}::DRaffle2::draw_winner`,
+                    typeArguments: [],
+                    functionArguments: [lotteryId],
+                },
+                sender: account.address,
+            } as any;
+
+            const response = await signAndSubmitTransaction(payload);
+            await aptos.waitForTransaction({ transactionHash: response.hash });
+
+            notification.success({
+                message: "Success",
+                description: "Winner drawn successfully!",
+            });
+
+            // Refresh both active and past lotteries since a lottery will move from active to past
+            await fetchActiveLotteries();
+            await fetchPastLotteries();
+        } catch (err: any) {
+            console.error("Failed to draw winner:", err);
+            setError(err.message || "Failed to draw winner");
+            notification.error({
+                message: "Error",
+                description: `Failed to draw winner: ${err.message}`,
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <Spin
             spinning={loading}
@@ -242,13 +282,122 @@ export default function LotteryDashboard() {
                 style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}
             >
                 {/* Wallet Connection Section */}
+                <Header
+                    style={{
+                        background: "#ADD8E6",
+                        padding: "0 20px",
+                        borderRadius: "10px",
+                        margin: "5px",
+                    }}
+                >
+                    <Row justify="space-between" align="middle">
+                        {/* Left side - Logo */}
+                        <Col flex="200px">
+                            <h1
+                                style={{
+                                    margin: 0,
+                                    fontSize: "30px",
+                                    fontWeight: "bold",
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        color: "#722ed1",
+                                        backgroundColor: "#f0f5ff",
+                                        fontSize: "35px",
+                                        fontWeight: "bold",
 
-                <Navbar
+                                        padding: "0 4px",
+                                        borderRadius: "4px",
+                                    }}
+                                >
+                                    D
+                                </span>
+                                <span
+                                    style={{
+                                        color: "#262626",
+                                        marginLeft: "2px",
+                                    }}
+                                >
+                                    Raffle
+                                </span>
+                            </h1>
+                        </Col>
+
+                        {/* Middle - Wallet Connection */}
+                        <Col flex="auto" style={{ textAlign: "center" }}>
+                            {!connected ? (
+                                // <Button
+                                //     type="primary"
+                                //     onClick={connectWallet}
+                                //     icon={<Wallet className="mr-2" size={16} />}
+                                //     size="large"
+                                // >
+                                //     Connect Petra Wallet
+                                // </Button>
+                                <Col
+                                    span={12}
+                                    style={{
+                                        textAlign: "right",
+                                        paddingRight: "200px",
+                                    }}
+                                >
+                                    <WalletSelector />
+                                </Col>
+                            ) : (
+                                <Button
+                                    onClick={disconnect}
+                                    icon={<Wallet className="mr-2" size={16} />}
+                                    size="large"
+                                >
+                                    {account?.address?.slice(0, 6)}...
+                                    {account?.address?.slice(-4)}
+                                </Button>
+                            )}
+                        </Col>
+
+                        {/* Right side - User Avatar */}
+                        <Col
+                            flex="200px"
+                            style={{
+                                textAlign: "right",
+                                display: "flex",
+                                alignItems: "center", // Vertically centers the content
+                                justifyContent: "flex-end", // Aligns the logo to the right
+                            }}
+                        >
+                            <a
+                                href="https://dorahacks.io/buidl/19286/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    // display: "inline-block",
+                                    textDecoration: "none",
+                                    textAlign: "right",
+                                    display: "flex",
+                                    alignItems: "center", // Vertically centers the content
+                                    justifyContent: "flex-end", // Aligns the logo to the right
+                                }}
+                            >
+                                <img
+                                    src="/logo.png"
+                                    alt="DRaffle Logo"
+                                    style={{
+                                        cursor: "pointer",
+                                        width: "40px",
+                                        animation: "pulse 1.5s infinite", // Applying the pulse animation
+                                    }}
+                                />
+                            </a>
+                        </Col>
+                    </Row>
+                </Header>
+                {/* <Navbar
                     connected={connected}
                     account={account}
                     connectWallet={connectWallet}
                     disconnect={disconnect}
-                />
+                /> */}
                 {/* <Col>DRaffle</Col>
                     <Col>
                         {!connected ? (
@@ -514,6 +663,20 @@ export default function LotteryDashboard() {
                                     }}
                                 >
                                     <div style={{ marginBottom: 16 }}>
+                                        {account?.address == MODULE_ADDRESS && (
+                                            <Button
+                                                type="default"
+                                                block
+                                                onClick={() =>
+                                                    drawWinner(
+                                                        lottery.lottery_id
+                                                    )
+                                                }
+                                                disabled={!account}
+                                            >
+                                                Draw Winner
+                                            </Button>
+                                        )}
                                         <p>
                                             <Text type="secondary">
                                                 {lottery.description}
@@ -595,9 +758,11 @@ export default function LotteryDashboard() {
                                                                     "inline-block", // Ensures the border-radius applies properly
                                                             }}
                                                         >
-                                                            {lottery?.winner[
-                                                                "vec"
-                                                            ]?.includes(
+                                                            {(
+                                                                (
+                                                                    lottery?.winner as any
+                                                                )?.vec ?? []
+                                                            ).includes(
                                                                 account.address
                                                             )
                                                                 ? "Congratulations You Won"
@@ -639,15 +804,14 @@ export default function LotteryDashboard() {
                                         </p>
                                         <p>
                                             <Text strong>Winner: </Text>
-                                            {lottery?.winner["vec"][0]
-                                                ? `${lottery?.winner[
+                                            {(lottery?.winner as any)[
+                                                "vec"
+                                            ]?.[0]
+                                                ? `${(lottery?.winner as any)[
                                                       "vec"
-                                                  ][0].slice(
-                                                      0,
-                                                      6
-                                                  )}...${lottery?.winner[
-                                                      "vec"
-                                                  ][0].slice(-4)}`
+                                                  ][0].slice(0, 6)}...${(
+                                                      lottery?.winner as any
+                                                  )["vec"][0].slice(-4)}`
                                                 : "N/A"}
                                         </p>
                                         <p>
@@ -668,328 +832,3 @@ export default function LotteryDashboard() {
         </Spin>
     );
 }
-
-// import { useState, useEffect } from "react";
-// import {
-//     Layout,
-//     Row,
-//     Col,
-//     Button,
-//     Spin,
-//     Input,
-//     Card,
-//     notification,
-// } from "antd";
-// import {
-//     useWallet,
-//     InputTransactionData,
-// } from "@aptos-labs/wallet-adapter-react";
-// import {
-//     Aptos,
-//     AptosConfig,
-//     Network,
-//     // WaitForTransactionOptions,
-// } from "@aptos-labs/ts-sdk";
-
-// const ONE_APT = 100000000;
-// // Initialize Aptos client
-// const aptosConfig = new AptosConfig({ network: Network.TESTNET });
-
-// const aptos = new Aptos(aptosConfig);
-// const moduleAddress =
-//     "0x791bb225d446fad68fb3aab4da12f8d58561f8291765c13b139e5921a68680e7";
-
-// // Define the interface for lottery information
-// interface LotteryInfo {
-//     lottery_id: string;
-//     admin: string;
-//     ticket_price: string;
-//     win_amount: string;
-//     participants: string[];
-//     is_active: boolean;
-//     winner: string | null;
-//     start_time: string;
-//     end_time: string | null;
-// }
-
-// // Define interface for lottery store
-// interface LotteryStore {
-//     current_lottery: LotteryInfo | null;
-//     past_lotteries: LotteryInfo[];
-//     total_lotteries: number;
-// }
-
-// export default function LotteryComponent() {
-//     const { account, signAndSubmitTransaction } = useWallet();
-//     const [allLotteryStore, setAllLotteryStore] = useState<any | null>(null);
-//     const [activeLottery, setActiveLottery] = useState<LotteryInfo | null>(
-//         null
-//     );
-//     const [transactionInProgress, setTransactionInProgress] =
-//         useState<boolean>(false);
-//     const [ticketPrice, setTicketPrice] = useState<string>("0");
-//     const [winAmount, setWinAmount] = useState<string>("0");
-
-//     // Fetch current lottery info
-//     const fetchLotteryInfo = async () => {
-//         if (!account) return;
-//         try {
-//             const lotteryStore = await aptos.getAccountResource({
-//                 accountAddress: moduleAddress,
-//                 resourceType: `${moduleAddress}::DRaffle::LotteryStore`,
-//             });
-//             console.log("lotteryStore: ", lotteryStore);
-//             setAllLotteryStore(lotteryStore);
-//             console.log(
-//                 "active lottery: ",
-//                 lotteryStore.current_lottery["vec"][0]
-//             );
-
-//             setActiveLottery(lotteryStore?.current_lottery?.["vec"]?.[0]);
-//         } catch (error) {
-//             console.error("Error fetching lottery:", error);
-//             setActiveLottery(null);
-//         }
-//     };
-
-//     useEffect(() => {
-//         fetchLotteryInfo();
-//         // Set up polling to refresh data
-//         const interval = setInterval(fetchLotteryInfo, 60000);
-//         return () => clearInterval(interval);
-//     }, [account?.address]);
-
-//     // Initialize new lottery with proper error handling
-//     const initializeLottery = async () => {
-//         if (!account) {
-//             notification.error({
-//                 message: "Wallet not connected",
-//                 description: "Please connect your wallet first",
-//             });
-//             return;
-//         }
-
-//         try {
-//             setTransactionInProgress(true);
-
-//             // Convert input values to BigInt strings (octas)
-//             const ticketPriceOctas = BigInt(
-//                 parseFloat(ticketPrice) * 100000000
-//             ).toString();
-//             const winAmountOctas = BigInt(
-//                 parseFloat(winAmount) * 100000000
-//             ).toString();
-
-//             const transaction: InputTransactionData = {
-//                 data: {
-//                     function: `${moduleAddress}::DRaffle::initialize_lottery`,
-//                     functionArguments: [ticketPriceOctas, winAmountOctas],
-//                 },
-//             };
-
-//             const response = await signAndSubmitTransaction(transaction);
-
-//             // Add a delay before checking transaction status
-//             await new Promise((resolve) => setTimeout(resolve, 2000));
-
-//             try {
-//                 await aptos.waitForTransaction({
-//                     transactionHash: response.hash,
-//                     options: {
-//                         timeoutSecs: 30, // Increase timeout
-//                         checkSuccess: true, // Verify transaction success
-//                     },
-//                 });
-
-//                 notification.success({
-//                     message: "Success",
-//                     description: "New lottery initialized successfully!",
-//                 });
-
-//                 await fetchLotteryInfo();
-//             } catch (waitError: any) {
-//                 throw new Error(
-//                     `Transaction failed or timed out: ${waitError.message}`
-//                 );
-//             }
-//         } catch (error: any) {
-//             console.error("Lottery initialization error:", error);
-//             notification.error({
-//                 message: "Error",
-//                 description: `Failed to initialize lottery: ${error.message}`,
-//             });
-//         } finally {
-//             setTransactionInProgress(false);
-//         }
-//     };
-
-//     // Buy lottery ticket
-//     const buyTicket = async () => {
-//         if (!account) return;
-//         setTransactionInProgress(true);
-
-//         const transaction: InputTransactionData = {
-//             data: {
-//                 function: `${moduleAddress}::DRaffle::buy_ticket`,
-//                 functionArguments: [],
-//             },
-//         };
-
-//         try {
-//             const response = await signAndSubmitTransaction(transaction);
-//             await aptos.waitForTransaction({
-//                 transactionHash: response.hash,
-//                 options: {
-//                     checkSuccess: true,
-//                 },
-//             });
-//             notification.success({
-//                 message: "Success",
-//                 description: "Ticket purchased successfully!",
-//             });
-//             fetchLotteryInfo();
-//         } catch (error: any) {
-//             notification.error({
-//                 message: "Error",
-//                 description: "Failed to buy ticket: " + error.message,
-//             });
-//         } finally {
-//             setTransactionInProgress(false);
-//         }
-//     };
-
-//     // Draw winner (admin only)
-//     const drawWinner = async () => {
-//         if (!account) return;
-//         setTransactionInProgress(true);
-
-//         const transaction: InputTransactionData = {
-//             data: {
-//                 function: `${moduleAddress}::DRaffle::draw_winner`,
-//                 functionArguments: [],
-//             },
-//         };
-
-//         try {
-//             const response = await signAndSubmitTransaction(transaction);
-//             await aptos.waitForTransaction({
-//                 transactionHash: response.hash,
-//                 options: {
-//                     checkSuccess: true,
-//                 },
-//             });
-//             notification.success({
-//                 message: "Success",
-//                 description: "Winner drawn successfully!",
-//             });
-//             fetchLotteryInfo();
-//         } catch (error: any) {
-//             notification.error({
-//                 message: "Error",
-//                 description: "Failed to draw winner: " + error.message,
-//             });
-//         } finally {
-//             setTransactionInProgress(false);
-//         }
-//     };
-
-//     return (
-//         <Spin spinning={transactionInProgress}>
-//             <Layout>
-//                 <Row align="middle">
-//                     <Col span={20} offset={2}>
-//                         <h1>Decentralized Lottery</h1>
-//                     </Col>
-//                 </Row>
-
-//                 {!activeLottery ? (
-//                     <Row gutter={[0, 32]} style={{ marginTop: "2rem" }}>
-//                         <Col span={8} offset={8}>
-//                             <Card title="Create New Lottery">
-//                                 <Input
-//                                     placeholder="Ticket Price (in APT)"
-//                                     value={ticketPrice}
-//                                     onChange={(e) =>
-//                                         setTicketPrice(e.target.value)
-//                                     }
-//                                     style={{ marginBottom: "1rem" }}
-//                                 />
-//                                 <Input
-//                                     placeholder="Win Amount (in APT)"
-//                                     value={winAmount}
-//                                     onChange={(e) =>
-//                                         setWinAmount(e.target.value)
-//                                     }
-//                                     style={{ marginBottom: "1rem" }}
-//                                 />
-//                                 <Button
-//                                     block
-//                                     type="primary"
-//                                     onClick={initializeLottery}
-//                                     disabled={!account}
-//                                     style={{
-//                                         height: "40px",
-//                                         backgroundColor: "#3f67ff",
-//                                     }}
-//                                 >
-//                                     Initialize Lottery
-//                                 </Button>
-//                             </Card>
-//                         </Col>
-//                     </Row>
-//                 ) : (
-//                     <Row gutter={[16, 16]} style={{ marginTop: "2rem" }}>
-//                         <Col span={12} offset={6}>
-//                             <Card title="Active Lottery" bordered={true}>
-//                                 <p>Lottery ID: {activeLottery.lottery_id}</p>
-//                                 <p>
-//                                     Ticket Price: {activeLottery.ticket_price}{" "}
-//                                     APT
-//                                 </p>
-//                                 <p>
-//                                     Win Amount: {activeLottery.win_amount} APT
-//                                 </p>
-//                                 <p>
-//                                     Participants:{" "}
-//                                     {activeLottery.participants.length}
-//                                 </p>
-//                                 <p>
-//                                     Status:{" "}
-//                                     {activeLottery.is_active
-//                                         ? "Active"
-//                                         : "Ended"}
-//                                 </p>
-//                                 {activeLottery.winner && (
-//                                     <p>Winner: To Be Declared</p>
-//                                 )}
-
-//                                 {activeLottery.is_active && (
-//                                     <div style={{ marginTop: "1rem" }}>
-//                                         <Button
-//                                             type="primary"
-//                                             onClick={buyTicket}
-//                                             disabled={!account}
-//                                             style={{ marginRight: "1rem" }}
-//                                         >
-//                                             Buy Ticket
-//                                         </Button>
-
-//                                         {account?.address === moduleAddress && (
-//                                             <Button
-//                                                 type="primary"
-//                                                 onClick={drawWinner}
-//                                                 danger
-//                                             >
-//                                                 Draw Winner
-//                                             </Button>
-//                                         )}
-//                                     </div>
-//                                 )}
-//                             </Card>
-//                         </Col>
-//                     </Row>
-//                 )}
-//             </Layout>
-//         </Spin>
-//     );
-// }

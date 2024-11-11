@@ -1,3 +1,8 @@
+
+
+
+https://github.com/user-attachments/assets/5d0e42b5-d1e1-4fc9-87d0-b5d48538778f
+
 ![{BBEA3E5D-C190-410D-8B8B-5C2F20BF7391}.png](https://cdn.dorahacks.io/static/files/1931790cd8525ba4c71ff4f4eba9eefb.png)
 
 # D-Raffle 
@@ -36,6 +41,7 @@ Off course all these big number are not going to be reality with just my app. Bu
 
 # Project Links:
 ### Github: https://github.com/psr-codes/DRaffle
+### Dorahacks Project Page: https://dorahacks.io/buidl/19286/
 ### Deployed Url: https://draffle1.vercel.app/
 ### Smart Contract: https://explorer.aptoslabs.com/object/0x791bb225d446fad68fb3aab4da12f8d58561f8291765c13b139e5921a68680e7/modules/run/DRaffle/draw_winner?network=testnet 
 

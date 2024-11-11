@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
-
+import ProfileDropdown from "./components/ProfileDropdown";
 import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
 
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
@@ -279,7 +279,11 @@ export default function LotteryDashboard() {
             indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />}
         >
             <Layout.Content
-                style={{ padding: "24px", maxWidth: 1200, margin: "0 auto" }}
+                style={{
+                    padding: "24px",
+                    maxWidth: 1200,
+                    margin: "0 auto",
+                }}
             >
                 {/* Wallet Connection Section */}
                 <Header
@@ -357,7 +361,8 @@ export default function LotteryDashboard() {
                         </Col>
 
                         {/* Right side - User Avatar */}
-                        <Col
+                        <ProfileDropdown />
+                        {/* <Col
                             flex="200px"
                             style={{
                                 textAlign: "right",
@@ -389,7 +394,7 @@ export default function LotteryDashboard() {
                                     }}
                                 />
                             </a>
-                        </Col>
+                        </Col> */}
                     </Row>
                 </Header>
                 {/* <Navbar
@@ -778,7 +783,6 @@ export default function LotteryDashboard() {
                                         </div>
                                     }
                                     bordered
-                                    hoverable
                                     style={{
                                         boxShadow:
                                             "0px 4px 6px rgba(0, 0, 0, 0.1)", // Apply shadow to the whole Card
@@ -786,9 +790,7 @@ export default function LotteryDashboard() {
                                 >
                                     <div style={{ marginBottom: 16 }}>
                                         <p>
-                                            <Text type="secondary">
-                                                {lottery.description}
-                                            </Text>
+                                            <Text>{lottery.description}</Text>
                                         </p>
                                         <p>
                                             <Text strong>Price: </Text>
@@ -802,18 +804,49 @@ export default function LotteryDashboard() {
                                                 ONE_APT}{" "}
                                             APT
                                         </p>
-                                        <p>
-                                            <Text strong>Winner: </Text>
+
+                                        <a
+                                            href={`https://explorer.aptoslabs.com/account/${
+                                                (lottery?.winner as any)[
+                                                    "vec"
+                                                ]?.[0] || ""
+                                            }?network=testnet`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            // style={{
+                                            //     textDecoration: "none",
+                                            //     textAlign: "right",
+                                            //     display: "flex",
+                                            //     alignItems: "center",
+                                            //     justifyContent: "flex-end",
+                                            // }}
+                                            style={{
+                                                width: "full",
+                                                background: "lightgreen",
+                                                font: "bold",
+                                                cursor: "pointer",
+                                                fontSize: "17px",
+                                                padding: "2px 8px",
+                                            }}
+                                        >
+                                            <Text
+                                                strong
+                                                style={{
+                                                    fontSize: "17px",
+                                                }}
+                                            >
+                                                Winner:{" "}
+                                            </Text>
                                             {(lottery?.winner as any)[
                                                 "vec"
                                             ]?.[0]
                                                 ? `${(lottery?.winner as any)[
                                                       "vec"
-                                                  ][0].slice(0, 6)}...${(
+                                                  ][0].slice(0, 10)}...${(
                                                       lottery?.winner as any
-                                                  )["vec"][0].slice(-4)}`
+                                                  )["vec"][0].slice(-10)}`
                                                 : "N/A"}
-                                        </p>
+                                        </a>
                                         <p>
                                             <Text strong>Duration: </Text>
                                             {lottery.duration_days} day(s)
